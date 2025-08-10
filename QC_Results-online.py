@@ -24,7 +24,7 @@ def fetch_github_json_files():
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3.raw"  # Get raw content directly
         }
-    base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/Data"
+    base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/contents/Data"
     response = requests.get(base_url, headers=headers)
     response.raise_for_status()
     files = response.json()
@@ -476,6 +476,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
 
