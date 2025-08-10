@@ -13,6 +13,7 @@ from plotly.subplots import make_subplots
 # from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 import requests
 
+# Fetch files from github repo
 def fetch_github_json_files():
     base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/contents/Data"
     response = requests.get(base_url)
@@ -91,12 +92,7 @@ def find_all_json(folder_path):
 def download_spx(start, end=datetime.now()):
         spx_df = yf.download('^GSPC', auto_adjust=True, start=start)
         spx_df = spx_df.droplevel(level=1, axis=1)[['Close']]
-        spx_df['Close'] = round(spx_df['Close'],2)
-        
-        # #Temp fix while yfinance doesn't work in Spyder
-        # spx_df = pd.read_csv('C:\\Users\\johnn\\Backtesting\\gspc.csv')
-        # spx_df['Date'] = pd.to_datetime(spx_df['Date'])
-    
+        spx_df['Close'] = round(spx_df['Close'],2)    
         return spx_df
 
 # Update Times from Zulu to New York
@@ -182,7 +178,7 @@ def build_equity_chart(data):
     fig.add_trace(go.Scatter(
         x=drawdown_dates,
         y=drawdown['values'],
-        # name='Drawdown',
+        name='Drawdown',
         fill='tozeroy',
         fillcolor='rgba(255, 0, 0, 0.3)',
         line=dict(color='red')
@@ -301,10 +297,7 @@ def process_files_from_dict(json_files_dict, spx_df):
     results = {}
     orders_store = {}
     raw_data_store = {}
-    files = find_all_json(folder)
-    for filename, src in files:
-        with open(src) as f:
-            data = json.load(f)
+    for filename, data in json_files_dict.items():
         raw_data_store[filename] = data
         if 'statistics' in data and 'Sharpe Ratio' in data['statistics']:
             sharpe_ratio = float(data['statistics']['Sharpe Ratio'])
@@ -377,11 +370,11 @@ def process_files_from_dict(json_files_dict, spx_df):
     return final_df, orders_store, raw_data_store
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Backtest Details", layout="wide")
+st.set_page_config(page_title="QC Backtest Details", layout="wide")
 # Help button & text (at top)
 col1, col2 = st.columns([9,1])
 with col1:
-    st.title("Backtest Details")
+    st.title("QC Backtest Details")
 with col2:
     if 'show_help' not in st.session_state:
         st.session_state.show_help = False
@@ -395,7 +388,7 @@ if st.session_state.show_help:
     This app displays detailed results from numerous QuantConnect backtests, including performance metrics, order details, and equity curves.
     
     **Summary Tab:**  
-    Shows aggregate statistics such as profitability, average gains/losses, Sharpe ratio, cumulative returns, and average time in trade.
+    Shows aggregate statistics such as profitability, average gains/losses, sharpe ratio, cumulative returns, and average time in trade.
     
     **Orders Tab:**  
     Lists all executed orders with details on symbol, quantity, price, value, option type, strike, and trade duration.
@@ -405,7 +398,7 @@ if st.session_state.show_help:
     
     Use the dropdown to select different single backtests. Toggle between formatted and numeric views for better sorting or readability.
     
-    The data is sourced from JSON exports.
+    The data is sourced from QuantConnect backtest JSON exports.
     
     Source files can be found [here](https://github.com/jbeckford-data/QC-Backtests/tree/main/Data).
     """
@@ -427,7 +420,7 @@ if not st.session_state.run_clicked:
 # Show dropdown only after run
 if st.session_state.run_clicked:
     st.selectbox(
-        "Select File Label",
+        "Select Label",
         list(st.session_state.orders_dict.keys()),
         key='selected_label'
     )
