@@ -21,8 +21,9 @@ def fetch_github_json_files():
         st.error("❌ GitHub token not found in secrets or environment variables")
         return {}
     headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3.raw"  # Get raw content directly
+            "Authorization": f"token {token.strip()}",  # .strip() removes accidental whitespace
+            "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28"  # Explicit API version
         }
     base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/contents/Data"
     response = requests.get(base_url, headers=headers)
@@ -476,6 +477,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
 
