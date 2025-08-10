@@ -17,9 +17,9 @@ import requests
 # Fetch files from github repo
 def fetch_github_json_files():
     token = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
-        if not token:
-            st.error("❌ GitHub token not found in secrets or environment variables")
-            return {}
+    if not token:
+        st.error("❌ GitHub token not found in secrets or environment variables")
+        return {}
     headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3.raw"  # Get raw content directly
@@ -476,5 +476,6 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
