@@ -13,10 +13,19 @@ from plotly.subplots import make_subplots
 # from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 import requests
 
+@st.cache_data(ttl=3600, show_spinner="Fetching latest backtest data...")  # Cache for 1 hour
 # Fetch files from github repo
 def fetch_github_json_files():
+    token = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
+        if not token:
+            st.error("❌ GitHub token not found in secrets or environment variables")
+            return {}
+    headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3.raw"  # Get raw content directly
+        }
     base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/contents/Data"
-    response = requests.get(base_url)
+    response = requests.get(base_url, headers=headers)
     response.raise_for_status()
     files = response.json()
 
@@ -467,4 +476,5 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
