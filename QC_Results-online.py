@@ -17,21 +17,21 @@ import requests
 
 #Retrieve all jsons from google drive.  To avoid confusion, filenames are hardcoded for now.
 google_drive_files = {
-    "10_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1_gBrlNG5dABIyRswAk-V9XA0OJQnYiOI"
-"10_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1B79YBmjE2eEba-3170T3S4e2rzeDefc_"
-"10_25-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19DE7oAIDpN81axEtIBWNu2MwfOASSbXb"
-"10_18-30_20_15.json" : "https://drive.google.com/uc?export=download&id=16tAHniphzsm_7kLBcENoxQxf13lv_M-7"
-"10_07-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1k3RvZcQJKiAPAouoTDQWOlyWnrVWo907"
-"9_55-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1G8GrWJZN6cLKTFQaCvU9jvlVenUa36eB"
-"9_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19qvhzVnrpnxdLEv17WS1adbL_WnYhKFG"
-"9_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=11OaRceFnDK19P-ncg2ssOcugnwYvV_JK"
-"2_entries-1015-1025_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=174eqgIOSub--dxb5rRiTXdH_3Nz9U5tb"
-"2_entries-1015-1025_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=1C2pSBODCQb63gK8dBhYorZ73uxpWUIMF"
-"2_entries-1015-1021_32_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1fRKsn6AGKtWGDRvDdd0VVHTkYCqwRbP0"
-"2_entries-1015-1021_32_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=17wCfOhwo-e6Jsq8wZd4Ab7QwB0AirTo8"
-"2_entries-1004-1011_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1406GlLM-WwLGWupj3FKyrkv3g0SHkcVO"
-"2_entries-1004-1011_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=15mhV0O6qG3YKCGGgt66-0Bbz9WPLXdIV"
-"2_entries-935-945_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1oDKTjVt2k1qM6j5TykCgp6781iSoFxTh"
+"10_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1_gBrlNG5dABIyRswAk-V9XA0OJQnYiOI",
+"10_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1B79YBmjE2eEba-3170T3S4e2rzeDefc_",
+"10_25-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19DE7oAIDpN81axEtIBWNu2MwfOASSbXb",
+"10_18-30_20_15.json" : "https://drive.google.com/uc?export=download&id=16tAHniphzsm_7kLBcENoxQxf13lv_M-7",
+"10_07-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1k3RvZcQJKiAPAouoTDQWOlyWnrVWo907",
+"9_55-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1G8GrWJZN6cLKTFQaCvU9jvlVenUa36eB",
+"9_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19qvhzVnrpnxdLEv17WS1adbL_WnYhKFG",
+"9_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=11OaRceFnDK19P-ncg2ssOcugnwYvV_JK",
+"2_entries-1015-1025_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=174eqgIOSub--dxb5rRiTXdH_3Nz9U5tb",
+"2_entries-1015-1025_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=1C2pSBODCQb63gK8dBhYorZ73uxpWUIMF",
+"2_entries-1015-1021_32_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1fRKsn6AGKtWGDRvDdd0VVHTkYCqwRbP0",
+"2_entries-1015-1021_32_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=17wCfOhwo-e6Jsq8wZd4Ab7QwB0AirTo8",
+"2_entries-1004-1011_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1406GlLM-WwLGWupj3FKyrkv3g0SHkcVO",
+"2_entries-1004-1011_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=15mhV0O6qG3YKCGGgt66-0Bbz9WPLXdIV",
+"2_entries-935-945_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1oDKTjVt2k1qM6j5TykCgp6781iSoFxTh",
 "2_entries-935-945_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=17EhW-a9yzOxO3hHglnmWjUhLa8yWVw4R"
 }
 
@@ -494,6 +494,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
 
