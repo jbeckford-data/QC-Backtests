@@ -14,30 +14,47 @@ from plotly.subplots import make_subplots
 import requests
 
 @st.cache_data(ttl=3600, show_spinner="Fetching latest backtest data...")  # Cache for 1 hour
-# Fetch files from github repo
-def fetch_github_json_files():
-    token = st.secrets.get("GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
-    if not token:
-        st.error("❌ GitHub token not found in secrets or environment variables")
-        return {}
-    headers = {
-            "Authorization": f"token {token.strip()}",  # .strip() removes accidental whitespace
-            "Accept": "application/vnd.github.v3+json",
-            "X-GitHub-Api-Version": "2022-11-28"  # Explicit API version
-        }
-    base_url = "https://api.github.com/repos/jbeckford-data/QC-Backtests/contents/Data"
-    response = requests.get(base_url, headers=headers)
-    response.raise_for_status()
-    files = response.json()
 
-    data_files = {}
-    for file in files:
-        if file['name'].endswith('.json'):
-            raw_url = file['download_url']
-            r = requests.get(raw_url)
+#Retrieve all jsons from google drive.  To avoid confusion, filenames are hardcoded for now.
+google_drive_files = {
+    "10_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1_gBrlNG5dABIyRswAk-V9XA0OJQnYiOI"
+"10_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1B79YBmjE2eEba-3170T3S4e2rzeDefc_"
+"10_25-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19DE7oAIDpN81axEtIBWNu2MwfOASSbXb"
+"10_18-30_20_15.json" : "https://drive.google.com/uc?export=download&id=16tAHniphzsm_7kLBcENoxQxf13lv_M-7"
+"10_07-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1k3RvZcQJKiAPAouoTDQWOlyWnrVWo907"
+"9_55-30_20_15.json" : "https://drive.google.com/uc?export=download&id=1G8GrWJZN6cLKTFQaCvU9jvlVenUa36eB"
+"9_45-30_20_15.json" : "https://drive.google.com/uc?export=download&id=19qvhzVnrpnxdLEv17WS1adbL_WnYhKFG"
+"9_35-30_20_15.json" : "https://drive.google.com/uc?export=download&id=11OaRceFnDK19P-ncg2ssOcugnwYvV_JK"
+"2_entries-1015-1025_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=174eqgIOSub--dxb5rRiTXdH_3Nz9U5tb"
+"2_entries-1015-1025_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=1C2pSBODCQb63gK8dBhYorZ73uxpWUIMF"
+"2_entries-1015-1021_32_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1fRKsn6AGKtWGDRvDdd0VVHTkYCqwRbP0"
+"2_entries-1015-1021_32_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=17wCfOhwo-e6Jsq8wZd4Ab7QwB0AirTo8"
+"2_entries-1004-1011_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1406GlLM-WwLGWupj3FKyrkv3g0SHkcVO"
+"2_entries-1004-1011_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=15mhV0O6qG3YKCGGgt66-0Bbz9WPLXdIV"
+"2_entries-935-945_30_20_15-2024-2025.json" : "https://drive.google.com/uc?export=download&id=1oDKTjVt2k1qM6j5TykCgp6781iSoFxTh"
+"2_entries-935-945_30_20_15-2022-2023.json" : "https://drive.google.com/uc?export=download&id=17EhW-a9yzOxO3hHglnmWjUhLa8yWVw4R"
+}
+
+#Read all from google drive
+def fetch_google_drive_json_files():
+    """
+    Download all JSON files from Google Drive using full URLs in GOOGLE_DRIVE_FILES.
+    Returns a dict {filename: json_data}.
+    """
+    json_files_dict = {}
+    for filename, url in GOOGLE_DRIVE_FILES.items():
+        try:
+            r = requests.get(url, timeout=15)
             r.raise_for_status()
-            data_files[file['name']] = r.json()
-    return data_files
+            json_files_dict[filename] = r.json()
+        except Exception as e:
+            st.warning(f"⚠️ Skipped {filename}: {e}")
+    return json_files_dict
+    
+def load_json_from_url(url):
+    r = requests.get(url)
+    r.raise_for_status()
+    return r.json()
 
 #Used for Label naming
 def fmt_hhmm(s):
@@ -93,9 +110,9 @@ def suggest(name):
     safe = '_'.join(safe_parts)
     return display, safe
 
-# Download All Files
-def find_all_json(folder_path):
-    return [(os.path.basename(p), p) for p in glob.glob(os.path.join(folder_path, "**", "*.json"), recursive=True)]
+# # Download All Files
+# def find_all_json(folder_path):
+#     return [(os.path.basename(p), p) for p in glob.glob(os.path.join(folder_path, "**", "*.json"), recursive=True)]
 
 # Download SPX historical
 # This is used to calc exercised values.
@@ -423,7 +440,7 @@ if not st.session_state.run_clicked:
         with st.spinner("Loading ... this can take a few minutes"):
             st.session_state.run_clicked = True
             spx_df = download_spx(start='2021-10-01', end='2025-08-01')
-            json_files = fetch_github_json_files()
+            json_files = fetch_google_drive_json_files()
             st.session_state.summary_df, st.session_state.orders_dict, st.session_state.raw_data_dict = process_files_from_dict(json_files, spx_df)
             st.session_state.selected_label = list(st.session_state.orders_dict.keys())[0]
             
@@ -477,6 +494,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
 
