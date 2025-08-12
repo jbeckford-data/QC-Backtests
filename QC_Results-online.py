@@ -3,9 +3,6 @@ import pandas as pd
 import numpy as np
 import pytz
 from datetime import datetime, timedelta
-import json
-import glob
-import os
 import re
 import yfinance as yf
 import plotly.graph_objects as go
@@ -13,7 +10,7 @@ from plotly.subplots import make_subplots
 # from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 import requests
 
-@st.cache_data(ttl=3600, show_spinner="Fetching latest backtest data...")  # Cache for 1 hour
+# @st.cache_data(ttl=3600, show_spinner="Fetching latest backtest data...")  # Cache for 1 hour
 
 #Retrieve all jsons from google drive.  To avoid confusion, filenames are hardcoded for now.
 google_drive_files = {
@@ -38,11 +35,11 @@ google_drive_files = {
 #Read all from google drive
 def fetch_google_drive_json_files():
     """
-    Download all JSON files from Google Drive using full URLs in GOOGLE_DRIVE_FILES.
+    Download all JSON files from Google Drive using full URLs in the dict.
     Returns a dict {filename: json_data}.
     """
     json_files_dict = {}
-    for filename, url in GOOGLE_DRIVE_FILES.items():
+    for filename, url in google_drive_files.items():
         try:
             r = requests.get(url, timeout=15)
             r.raise_for_status()
@@ -51,10 +48,10 @@ def fetch_google_drive_json_files():
             st.warning(f"⚠️ Skipped {filename}: {e}")
     return json_files_dict
     
-def load_json_from_url(url):
-    r = requests.get(url)
-    r.raise_for_status()
-    return r.json()
+# def load_json_from_url(url):
+#     r = requests.get(url)
+#     r.raise_for_status()
+#     return r.json()
 
 #Used for Label naming
 def fmt_hhmm(s):
@@ -110,10 +107,6 @@ def suggest(name):
     safe = '_'.join(safe_parts)
     return display, safe
 
-# # Download All Files
-# def find_all_json(folder_path):
-#     return [(os.path.basename(p), p) for p in glob.glob(os.path.join(folder_path, "**", "*.json"), recursive=True)]
-
 # Download SPX historical
 # This is used to calc exercised values.
 def download_spx(start, end=datetime.now()):
@@ -142,8 +135,9 @@ def process_symbol(row):
 
 def correct_exercised(df):
     # Case where trades did not sell and exercise at end of day.
+    # In QC (and source file), these are exercised at 1am next day.
     # A few corrections: time is corrected from next day, 1am, to 4pm NY of trade date.
-    # And value is calculated correctly.
+    # Value is calculated correctly through SPX historical data.
     df1 = df.merge(spx_df, left_on='Date', right_on='Date')
     df1['value'] = np.where(
         (df1['value'] != 0) & (df1['OpType'] == 'Call'),
@@ -222,19 +216,40 @@ def build_equity_chart(data):
     fig.add_hline(y=0, line=dict(color='gray', dash='dash'), row=2, col=1)
     return fig
 
-def format_orders_df(df):
-    # Format 'tradeOpen' as hh:mm:ss
-    df = df.copy()
-    if 'tradeOpen' in df.columns:
-        df['tradeOpen'] = df['tradeOpen'].apply(
-        lambda td: "{:02d}:{:02d}:{:02d}".format(
-            int(td.total_seconds() // 3600),
-            int((td.total_seconds() % 3600) // 60),
-            int(td.total_seconds() % 60)
-        )
-    )
+# def format_orders_df(df):
+#     # Format 'tradeOpen' as hh:mm:ss
+#     df = df.copy()
+#     if 'tradeOpen' in df.columns:
+#         df['tradeOpen'] = df['tradeOpen'].apply(
+#         lambda td: "{:02d}:{:02d}:{:02d}".format(
+#             int(td.total_seconds() // 3600),
+#             int((td.total_seconds() % 3600) // 60),
+#             int(td.total_seconds() % 60)
+#         )
+#     )
 
-    return df
+#     return df
+
+def calc_drawdown(data):
+    df = pd.DataFrame([data['profitLoss']]).T.reset_index()
+    df.columns = ['Date','Value']
+    
+    def parse_zulu(ts):
+    # Remove trailing Z and parse
+        if re.match(r".*\.\d+Z$", ts):
+            # Has fractional seconds
+            return pd.to_datetime(ts, format="%Y-%m-%dT%H:%M:%S.%fZ", utc=True)
+        else:
+            # No fractional seconds
+            return pd.to_datetime(ts, format="%Y-%m-%dT%H:%M:%SZ", utc=True)
+        
+    df['Date'] = df['Date'].apply(parse_zulu)
+    df = pd.DataFrame(df.groupby(df['Date'].dt.date)['Value'].sum())
+    df['CumSum'] = df['Value'].cumsum()
+    df['CumMax'] = df['CumSum'].cummax()
+    df['Drawdown'] = df['CumSum'] - df['CumMax']
+    max_drawdown = df['Drawdown'].min()
+    return max_drawdown
 
 # Streamlit Formatting - Update to readable if desired.
 # Formatting is done regardless.  View is toggled in the app.
@@ -244,10 +259,13 @@ def format_table(df, mode="summary"):
 
     if mode == "summary":
 
-        if 'Percent Profitable' in df.columns:
-            df['Percent Profitable'] = df['Percent Profitable'].apply(lambda x: f"{x:.2%}" if pd.notna(x) else "")
+        percent_cols = ['Percent Profitable']
+        for col in percent_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: f"{x:.2%}" if pd.notna(x) else "")
 
-        currency_cols = ['Avg Positive Day', 'Avg Negative Day', 'Avg Day', 'Avg Credit Received', 'Cumulative']
+        currency_cols = ['Max Drawdown', 'Avg Positive Day', 'Avg Negative Day', 
+                         'Avg Day', 'Avg Credit Received', 'Cumulative']
         for col in currency_cols:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"${x:,.2f}" if pd.notna(x) else "")
@@ -261,10 +279,8 @@ def format_table(df, mode="summary"):
                 if pd.isna(val):
                     return ""
                 if isinstance(val, pd.Timedelta):
-                    print('Val:' + str(val))
                     total_seconds = int(val.total_seconds())
                 else:
-                    print("Val3:" + str(val))
                     total_seconds = int(val)  # assuming seconds as int or float
                 h = total_seconds // 3600
                 m = (total_seconds % 3600) // 60
@@ -277,8 +293,6 @@ def format_table(df, mode="summary"):
         for col in int_cols:
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: f"{int(x)}" if pd.notna(x) else "")
-
-        # Reorder or keep columns as is
 
     elif mode == "orders":
         # Format Date as MM/DD/YYYY string
@@ -362,31 +376,48 @@ def process_files_from_dict(json_files_dict, spx_df):
         average_positive = positive_days['value_sum'].mean() if total_positive > 0 else 0
         average_negative = negative_days['value_sum'].mean() if total_negative > 0 else 0
         avg_tif = daily_summary['tradeOpen'].mean()
+        
+        alpha = float(data['totalPerformance']['portfolioStatistics']['alpha'])
+        beta = float(data['totalPerformance']['portfolioStatistics']['beta'])
+        sortino = float(data['totalPerformance']['portfolioStatistics']['sortinoRatio'])
+        sharpe_ratio = float(data['totalPerformance']['portfolioStatistics']['sharpeRatio'])
+        ann_st_dev = float(data['totalPerformance']['portfolioStatistics']['annualStandardDeviation'])
+        ann_var = float(data['totalPerformance']['portfolioStatistics']['annualVariance'])
 
         def credit_group(group):
             total_sum = group['value'].sum()
             positive_vals = group.loc[group['value'] > 0, 'value']
             avg_positive = positive_vals.mean() if not positive_vals.empty else 0
             return pd.Series({ 'Sum Value': total_sum, 'Average Positive Value': avg_positive})
+        
         result = orders_df.groupby('groupOrderManager.id').apply(credit_group).reset_index()
         avg_credit = result[result['Sum Value'] > 0]['Sum Value'].mean()
+        max_drawdown = calc_drawdown(data)
+        drawdown_rec = int(data['totalPerformance']['portfolioStatistics']['drawdownRecovery'])
 
         summary = pd.DataFrame([{
+            'Cumulative': daily_summary['cumulative_value'].iloc[-1] * 100.0 + 20000,
+            'Sharpe Ratio': round(sharpe_ratio, 3) if sharpe_ratio is not None else np.nan,
+            'Sortino Ratio': round(sortino, 3),
+            'Max Drawdown': max_drawdown,
+            'Drawdown Recovery': drawdown_rec,
+            'Alpha': alpha,
+            'Beta':beta,
+            'Percent Profitable': percent_profitable,
             'Positive Days': total_positive,
             'Negative Days': total_negative,
             'Total Days': total_days,
-            'Percent Profitable': percent_profitable,
             'Avg Positive Day': average_positive * 100.0,
             'Avg Negative Day': average_negative * 100.0,
             'Avg Day': avg_all * 100.0,
-            'Sharpe Ratio': round(sharpe_ratio, 3) if sharpe_ratio is not None else np.nan,
+            'Annual Standard Deviation': ann_st_dev,
+            'Annual Variance': ann_var,
             'Avg TIF': pd.to_timedelta(avg_tif.total_seconds(), unit='s'),
-            'Avg Credit Received': avg_credit * 100.0,
-            'Cumulative': daily_summary['cumulative_value'].iloc[-1] * 100.0
+            'Avg Credit Received': avg_credit * 100.0
         }])
 
-        columns = ['Date','Symbol','Quantity','Price','Value','OpType','Strike','tradeOpen']
-        orders_df = orders_df[columns]
+        order_columns = ['Date','Symbol','Quantity','Price','Value','OpType','Strike','tradeOpen']
+        orders_df = orders_df[order_columns]
         disp, _ = suggest(filename)
         results[disp] = summary
         orders_store[disp] = orders_df
@@ -427,7 +458,7 @@ if st.session_state.show_help:
     
     The data is sourced from QuantConnect backtest JSON exports.
     
-    Source files can be found [here](https://github.com/jbeckford-data/QC-Backtests/tree/main/Data).
+    Source files can be found .
     """
     st.markdown(help_text)
 
@@ -459,7 +490,9 @@ if st.session_state.run_clicked:
     like \$ or \% are treated as strings for sorting purposes. 
     This means, for example, "\$140" is sorted less than "\$3." 
     To enable proper numeric sorting, set the view to numeric (unformatted). 
-    Uncheck mainly for easier reading.""")
+    Uncheck mainly for easier reading.
+    
+    Summary table uses a standardized window, 1/1/2022-12/31/2024, for equal comparisons.""")
     
 
 
@@ -468,9 +501,10 @@ tab1, tab2, tab3 = st.tabs(["Summary", "Orders", "Graph"])
 with tab1:
     if st.session_state.run_clicked:
         if format_toggle:
-            st.dataframe(st.session_state.summary_df, use_container_width=True)
+            sum_df = st.session_state.summary_df.set_index("Label")
+            st.dataframe(sum_df, use_container_width=True)        
         else:
-            formatted_summary = format_table(st.session_state.summary_df, mode='summary')
+            formatted_summary = format_table(st.session_state.summary_df, mode='summary').set_index("Label")
             st.dataframe(formatted_summary, use_container_width=True)
     else:
         st.write('Run to see summary...')
@@ -478,7 +512,7 @@ with tab1:
 
 with tab2:
     if st.session_state.run_clicked:
-        orders_df = st.session_state.orders_dict[st.session_state.selected_label]
+        orders_df = st.session_state.orders_dict[st.session_state.selected_label].set_index("Date")
         if format_toggle:
             st.dataframe(orders_df, use_container_width=True)            
         else:
