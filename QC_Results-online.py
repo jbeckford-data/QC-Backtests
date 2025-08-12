@@ -458,11 +458,11 @@ if st.session_state.show_help:
     
     The data is sourced from QuantConnect backtest JSON exports.
     
-    Source files can be found
+    Source files can be found below: (link will download)
     """
     st.markdown(help_text)
 
-    with st.expander("here.", expanded=False):
+    with st.expander("📁 View Source Files", expanded=False):
         st.write("Original backtest JSON files:")
         for filename, url in google_drive_files.items():
             st.markdown(f"- [{filename}]({url})")
@@ -533,6 +533,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.write("No graph to display yet.")
+
 
 
 
